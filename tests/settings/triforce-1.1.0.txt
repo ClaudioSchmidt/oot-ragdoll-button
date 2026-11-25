@@ -1,0 +1,108 @@
+# oot-ragdoll 1.1.0 settings. The mod writes this file (the menu's Save, the settings button); edit it with the game closed.
+# Delete a line (or the file) to get its default back. Text after # is a note.
+# menubutton (default down = d-pad Down; L3 before 1.1.0): double-tap = next force. Hold 3 s, release, then press a button: new ragdoll button.
+# buttons: none a b x y l r zl zr lstick rstick plus minus left up right down (menubutton none = no in-game settings)
+# keys (PC): none, a-z, 0-9, f1-f12, space tab enter shift ctrl alt left up right down insert delete home end pageup pagedown ..., or vk<hex>
+# voices: VoiceDamageL/M/S, VoiceDamageLand, VoiceFallDanger... = voice with mouth; clips Damage_B_01, FallingScream_01, Jump_S_01... = sound only; comma list = played in turn, none = off
+# voicepress_<level>: every press of the ragdoll button (start and kicks), per force level; voicefall_<level>: when he falls faster than fall_speed for fall_delay s, again every fall_repeat s; voicegetup: replaces the game's get-up voice; voicehard / voicelight: landing or wall hit from the air (10 m/s and up / below); voiceslide: bumps while he lies
+# forcevoice: one entry per force level (player, light, medium, strong, mighty), played on force change
+version = 10
+
+# ---- Start ----
+enabled = on
+playonly = on
+force = mighty
+advanced = off   # Advanced: Shows the advanced rows of the menu.
+debugtab = off   # Debug tab: Shows the Debug tab of the menu.
+menusize = 150   # Menu size: Size of the menu's text and rows, in percent (75 to 300).
+versioncheck = on   # Version check: off = skip the check of the game build (only if a false alarm keeps the mod off)
+
+# ---- Force ----
+kick_player = 0   # Player: Speed a press adds in the aimed direction, on top of his own.
+kick_light = 6   # Light: Speed a press adds in the aimed direction, on top of his own.
+kick_medium = 32   # Medium: Speed a press adds in the aimed direction, on top of his own.
+kick_strong = 80   # Strong: Speed a press adds in the aimed direction, on top of his own.
+kick_mighty = 150   # Mighty: Speed a press adds in the aimed direction, on top of his own.
+push_player = 0   # Player: Speed he is kept at in the aimed direction while the button is held.
+push_light = 3   # Light: Speed he is kept at in the aimed direction while the button is held.
+push_medium = 16   # Medium: Speed he is kept at in the aimed direction while the button is held.
+push_strong = 40   # Strong: Speed he is kept at in the aimed direction while the button is held.
+push_mighty = 80   # Mighty: Speed he is kept at in the aimed direction while the button is held.
+kick_lift = 15   # Kick from the ground goes up at least: Kicks aim where the camera looks, usually a little downward. On the ground they go at least this far up. -90: camera only (0.9.0).
+push_lift = 0   # Push on the ground goes up at least: 0: the push slides him along the ground instead of into it. In the air it follows the camera. -90: camera only (0.9.0).
+kick_stack = 0.25   # Kick again the same way adds: Share of the kick speed a kick adds when he already flies that fast in that direction. 0: nothing (0.9.0).
+kick_stack_max = 2   # ... up to a speed of: Stacked kicks stop adding at this many kick speeds.
+push_grip = 0.04   # Push grip: While pushing: share of his sideways drift lost per physics frame. More = he follows the stick tighter. 0: none (0.9.0).
+limbs = 1   # Kicks and pushes move: Core only: hips and spine are moved, arms and legs get dragged along.
+weights = 1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   # Body weights: share of the kick / push per ragdoll body 0..23 (with limbs = 1)
+
+# ---- Spin and roll ----
+spin_mode = 1   # Kicks flip him: What a kick does to his rotation. The left stick has its own switch below.
+spin_kick = 8   # Flip per kick: Rotation a kick of 16 m/s adds; stronger kicks add more.
+spin_kick_max = 30   # Fastest flip from kicks: Kicks stop adding rotation above this. 160 turns/s = no limit (0.9.0).
+stick_spin = 1   # Left stick spins and rolls him: On: the stick also spins him in the air and rolls him on the ground. Off: it only aims kicks and the push. Only while a button is held: set it below.
+spin_max = 10   # Top spin with the stick: In the air, left stick at full tilt (stick spin on).
+spin_push = 3   # Spin build-up per frame: How fast the stick spins him up, per physics frame.
+spin_button = none   # Stick spins only while holding: With stick spin on. none: the stick always spins and rolls him. A button: only while it is held, so the stick alone just aims. Kicks flip mode 'Only with the spin button': kicks flip only while it is held.
+roll_max = 6   # Top roll speed: Stick across his body: log roll about his spine toward the stick, full from 30 degrees off his body axis.
+roll_radius = 0.2   # Travel per roll: Distance he covers per turn of the roll.
+roll_along = 2   # Drag along his body: Stick along his body: drags him head or feet first at this speed. 0: nothing (0.9.0).
+spin_brake = 0.85   # Spin kept per frame after letting go: On the ground, for 1 s after the stick is released. 100: no brake.
+ground_gap = 0.6   # Grounded: hips above his capsule at most: First test for "he lies on the ground" (roll instead of air spin).
+rest_frames = 8   # Grounded too: no vertical speed for: Second test, for when his capsule is far away after a long flight. 0: off (0.9.0).
+head_body = 6   # Head end of his spine: Ragdoll body that marks the head end (the roll axis runs from body 0 to it).
+
+# ---- Get-up ----
+getup_speed = 4   # He can get up when slower than: While his body is faster, the get-up button waits.
+getup_wait = 1.5   # A press while faster waits: The press is kept this long and he stands up as soon as he is slow enough. A kick cancels it. 0: the press is dropped (0.9.0).
+getup_hold = 1.5   # Holding the button gets him up anyway after: For when he never comes to rest. 0: off (0.9.0).
+warp_gap = 2   # Stand up at the body when the game is farther behind: The game's own position of Link lags behind the ragdoll; from this distance he is moved to the body first.
+
+# ---- Camera ----
+cam_dist = 1   # Camera pulls back by: Extra distance at full speed. 0: off.
+cam_fov = 10   # Field of view widens by: At full speed.
+cam_lo = 5   # Starts at: Body speed where the effect begins.
+cam_hi = 40   # Full at: Body speed for the full effect.
+cam_in = 0.3
+cam_out = 1
+cam_lift = 0.5   # Share that goes up instead of back: Up keeps the camera out of the ground behind him.
+
+# ---- Voices ----
+kickvoice = on
+impactvoice = on
+fall_speed = 5
+fall_delay = 2
+fall_repeat = 6
+voicepress_player = VoiceDamageS
+voicepress_light = VoiceDamageS,VoiceDamageM
+voicepress_medium = VoiceDamageM,VoiceDamageL
+voicepress_strong = VoiceDamageL,VoiceDamageDanger,VoiceFallDanger
+voicepress_mighty = VoiceFallDanger
+voicefall_player = none
+voicefall_light = none
+voicefall_medium = none
+voicefall_strong = VoiceFallDanger
+voicefall_mighty = VoiceFallDanger
+voicegetup = VoiceDamageStand
+voicehard = VoiceDamageL,VoiceDamageLand,VoiceWallHit
+voicelight = VoiceDamageS
+voiceslide = none
+forcevoice = VoiceSideStep,VoiceAttackS,VoiceAttackM,VoiceAttackL,VoiceChargeAttackFull
+listenvoice = EquipmentNoise_GuardBreak
+setvoice = Guard_Player
+
+# ---- Controls ----
+button = r
+getup = b
+menubutton = down
+menukey = none
+ragkey = none
+getupkey = none
+spinkey = none
+setkey = none
+menupad = on
+menublock = on   # Pad controls the menu: On: the pad moves through this menu and the game gets no input. Off: you keep playing and use the mouse here.
+
+# ---- Debug ----
+log_map = 0   # Log the body map at the next ragdoll: Writes each ragdoll body's offset from body 0 to the log.
+log_rag = 0   # Log stick and spin while down: Lines 'rag stick' in the log, about 6 a second.

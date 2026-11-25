@@ -1,0 +1,5 @@
+# expect: bad 0 changed 1
+# a file from before the voice lists changed (version 2): its voice lines are replaced by the current defaults
+version = 2
+force = light
+voice1 = SomethingOld

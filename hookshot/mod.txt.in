@@ -1,0 +1,10 @@
+# What the HSML menu's mod list shows for this mod. Goes into the mod's folder: mods\Ragdoll Button\mod.txt
+# (written by hookshot/build.sh to out/hookshot/mod.txt, the version from src/config.inc). Images beside it: banner.jpg,
+# banner2.jpg, banner3.jpg
+name = Ragdoll Button
+version = @VERSION@
+author = Clausioporosis
+link = GameBanana | https://gamebanana.com/mods/740650
+link = GitHub | https://github.com/ClaudioSchmidt/oot-ragdoll-button
+license = GPL-2.0
+about = Press a button and Link goes limp: a full physics ragdoll from any pose, keeping his speed.

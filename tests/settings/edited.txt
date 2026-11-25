@@ -1,0 +1,11 @@
+# expect: bad 2 changed 6
+version = 3
+force = mighty
+kick_medium = 20     # a note after the value
+  push_grip = 0.1
+spin_mode = 2
+spin_button = zr
+weights = 1,1,1,0.5
+menukey = home
+this line is nonsense
+kick_lift = much
