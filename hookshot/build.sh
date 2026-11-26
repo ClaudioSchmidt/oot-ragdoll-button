@@ -10,6 +10,15 @@
 #   sh build.sh test             against hookshot.exe: the functions this mod hooks and calls
 #   sh build.sh settings-test    the built DLL reads and writes the settings (defaults + ../tests/settings/*.txt)
 #   sh build.sh menu-preview [advanced 0|1] [w] [h] [scale]   the menu's tabs as PNGs in ../build/menu-preview
+# Linux (HSML 2.1; on Linux or in WSL with g++ 12 or newer, HSML's checkout beside this one):
+#   sh build.sh linux                  out/linux/ragdoll-button.so + out/linux/mod.txt: this mod for a port's Linux
+#                                      build, into <game>/mods/Ragdoll Button/hsml/ (mod.txt beside hsml/)
+#   sh build.sh linux-test             the test list below against the port's ELF (hsml: sh build.sh linux test)
+#   sh build.sh linux-settings-test    settings-test with the .so
+# The page registers with HSML's Linux menu (hsml/libhsml-ui.so) as on Windows; HSML checks it offline with
+# `sh build.sh linux ui-check-mod <this .so> <folder>`. Without that menu the mod runs from oot_ragdoll.txt. The
+# previews (menu_preview.cpp, ui_paint.cpp) are Windows only and not built; -z defs makes anything the mod would need
+# from them a build error.
 set -e
 cd "$(dirname "$0")"
 export PATH=/c/msys64/ucrt64/bin:$PATH
@@ -17,14 +26,41 @@ HSML="${HSML_DIR:-../../hsml}"
 FLAGS="-O2 -std=c++17 -Wall -Wno-unused-function -Wno-format"
 LINK="-shared -static -static-libgcc -static-libstdc++"
 DLL=../out/hookshot/ragdoll-button.dll
-if [ "$1" = test ]; then
+testlist() {
     # h = hooked (hs_rt.cpp: choose, slipnext, ragupdate, camapply, voice, then consumer, physafter, memset and the 5 npad
     # forwarders by guest address), then the game functions main.cpp calls (GCall)
     M=0x80020000
-    exec sh "$HSML/build.sh" test $(for o in 0x2b30de0 0x2b3d5f0 0x321c040 0x4c48c0 0xf98ff0 0x2c1d740 0xa29f90; do printf 'h%x ' $((M + o)); done) \
-        h838f5b70 h80175c60 h8572f300 h8566b410 h8566ac30 h8566b500 h8566b5f0 h8566ad20 \
-        $(for o in 0x802000 0x5f88c0 0x3217550 0x38bb040 0x12dbe0 0x38bb130 0x12b790 0x43db00 0x440630 0xa29f90 0x944e70 0x2e916b0 \
-                   0x3c42800 0x3c42830 0x3c427f0 0x3c42810 0x3c42820; do printf '%x ' $((M + o)); done)
+    for o in 0x2b30de0 0x2b3d5f0 0x321c040 0x4c48c0 0xf98ff0 0x2c1d740 0xa29f90; do printf 'h%x ' $((M + o)); done
+    printf 'h838f5b70 h80175c60 h8572f300 h8566b410 h8566ac30 h8566b500 h8566b5f0 h8566ad20 '
+    for o in 0x802000 0x5f88c0 0x3217550 0x38bb040 0x12dbe0 0x38bb130 0x12b790 0x43db00 0x440630 0xa29f90 0x944e70 0x2e916b0 \
+             0x3c42800 0x3c42830 0x3c427f0 0x3c42810 0x3c42820; do printf '%x ' $((M + o)); done
+}
+if [ "$1" = test ]; then
+    exec sh "$HSML/build.sh" test $(testlist)
+fi
+if [ "$1" = linux-test ]; then
+    exec sh "$HSML/build.sh" linux test $(testlist)
+fi
+if [ "$1" = linux ]; then
+    L=../out/linux; OBJ=../build/linux-imgui; mkdir -p $L $OBJ
+    COMPAT="-include $HSML/loader/linux/glibc_compat.h"   # (what glibc 2.35 has: see there)
+    LFLAGS="-O2 -std=c++17 -Wall -Wno-unused-function -Wno-format -fPIC -fvisibility=hidden $COMPAT"
+    LSO="-shared -static-libstdc++ -static-libgcc -Wl,-z,defs -Wl,-z,noexecstack"
+    IMGUI="${IMGUI_DIR:-../vendor/imgui}"
+    IMFLAGS="-include $HSML/sdk/hsml_imconfig.h -I$IMGUI"
+    for f in imgui imgui_draw imgui_tables imgui_widgets; do
+        o=$OBJ/$f.o
+        [ -f $o ] && [ $o -nt $IMGUI/$f.cpp ] && [ $o -nt "$HSML/sdk/hsml_imconfig.h" ] && [ $o -nt "$HSML/loader/linux/glibc_compat.h" ] || g++ -O2 -std=c++17 -fPIC -fvisibility=hidden $COMPAT $IMFLAGS -c $IMGUI/$f.cpp -o $o
+    done
+    g++ $LFLAGS $IMFLAGS -DHOOKSHOT -DRD_MENU -I. -I../src -I"$HSML/sdk" $LSO -o $L/ragdoll-button.so ../src/main.cpp hs_rt.cpp "$HSML/sdk/hsml_mod.cpp" "$HSML/sdk/hsml_menu.cpp" $OBJ/*.o
+    sed "s/@VERSION@/$(sed -n 's/.*MOD_VERSION = "\([^"]*\)".*/\1/p' ../src/config.inc)/" mod.txt.in > $L/mod.txt
+    echo built $L/ragdoll-button.so
+    exit 0
+fi
+if [ "$1" = linux-settings-test ]; then
+    mkdir -p ../build
+    g++ -O1 -std=c++17 -o ../build/linux-offline-test.bin offline_test.cpp -ldl
+    exec ../build/linux-offline-test.bin settings ../out/linux/ragdoll-button.so ../tests/settings/*.txt
 fi
 if [ "$1" = settings-test ] || [ "$1" = menu-preview ]; then
     mkdir -p ../build
@@ -45,3 +81,5 @@ g++ $FLAGS $IMFLAGS -DHOOKSHOT -DRD_MENU -I. -I../src -I"$HSML/sdk" $LINK -o $DL
 # what HSML's mod list shows (mods\Ragdoll Button\mod.txt), with this build's version
 sed "s/@VERSION@/$(sed -n 's/.*MOD_VERSION = "\([^"]*\)".*/\1/p' ../src/config.inc)/" mod.txt.in > ../out/hookshot/mod.txt
 echo built $DLL
+# this PC only: the fresh build into every port it is installed in (replaces files, see the script; not part of the repo)
+[ -f ../../deploy-ports.py ] && python ../../deploy-ports.py ragdoll-button || true

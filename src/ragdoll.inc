@@ -82,7 +82,7 @@ void StartRagdoll(uintptr_t actor) {
     g_bodySpeed = sqrtf(vh * vh + g_vel[1] * g_vel[1]);
     g_bodyPos[0] = g_bodyPos[1] = g_bodyPos[2] = 0; g_warpPending = 0; g_physFrames = 0; g_restFrames = 0;
     g_firstFrameDone = false; g_firstKickOpen = true; g_needSlip = true; g_burstPending = false; g_spinPending = false;
-    g_steerFrames = 0; g_sinceSteer = 999; g_lastDrop = 0; g_impactPrevCont = 0;
+    g_steerFrames = 0; g_sinceSteer = 999; g_lastDrop = 0; g_impactPrevCont = 0; g_impactSpeed2 = 0; g_impactAt = 0;
     g_startWait = 0; g_spineOk = false; g_groundHold = 0; g_groundRun = 0; g_fallSince = 0; g_fallLast = 0;
     bool airStart = fabsf(g_vel[1]) > AIR_START_VY;   // Link falls or jumps: he starts in the air
     g_airFrames = airStart ? AIR_FRAMES : 0;

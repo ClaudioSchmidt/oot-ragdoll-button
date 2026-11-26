@@ -53,16 +53,33 @@ void Measure(uintptr_t cont, uintptr_t h0) {
     float dx = v.x - g_impactPrev.x, dy = v.y - g_impactPrev.y, dz = v.z - g_impactPrev.z;
     float drop = sqrtf(dx * dx + dy * dy + dz * dz);
     float sp = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z), psp = sqrtf(g_impactPrev.x * g_impactPrev.x + g_impactPrev.y * g_impactPrev.y + g_impactPrev.z * g_impactPrev.z);
-    // pushing into the ground/wall drops every frame: only the first frame of a hit counts
-    if (g_cfg.impactvoice && g_impactPrevCont == cont && psp - sp > IMPACT_MIN * 0.5f && drop > IMPACT_MIN
-        && g_lastDrop < IMPACT_MIN && Ticks() - g_lastSayTick > TickHz() * 4 / 10)
-    {
+    // 1.2.0 (user: on a flight that got faster he hit something and screamed on): an impact is a sharp change of his
+    // velocity (any direction: ground, wall, object) or a loss of IMPACT_REL of his speed in one or two frames (a hit
+    // spread over two frames). Pushing into the ground/wall drops every frame: only the first frame of a hit counts,
+    // and after one the next counts IMPACT_REARM frames later (bounces).
+    bool same = g_impactPrevCont == cont;
+    float ref = fmaxf(psp, g_impactSpeed2), lost = fmaxf(psp - sp, g_impactSpeed2 - sp);
+    bool hit = same && g_lastDrop < IMPACT_MIN && (!g_impactAt || g_physFrames + 1 - g_impactAt >= IMPACT_REARM)
+        && ((psp - sp > IMPACT_MIN * 0.5f && drop > IMPACT_MIN) || (lost >= IMPACT_MIN * 0.5f && lost >= IMPACT_REL * ref));
+    if (hit) {
+        float size = fmaxf(drop, lost);
         // 1.1.0: from the air (landing, a wall in flight): hard or light by the speed lost; while he already lies: sliding
         // (1.1.0 user: a drop of 2x hard or more is a landing even when the air counter missed the flight: a 52 m/s hit
-        // right after a kick counted as sliding, silent)
-        bool fromAir = g_airFrames >= AIR_FRAMES || drop >= 2 * IMPACT_HARD;
-        SayWhen(!fromAir ? V_SLIDE : drop >= IMPACT_HARD ? V_HARD : V_LIGHT, drop, "impact");
-        if (fromAir) g_airFrames = 0;   // what follows the landing (bounces, rolling) is on the ground
+        // right after a kick counted as sliding, silent). 1.2.0: so is a hard one that no push caused (a quick flight
+        // shortly after the press: the air counter starts late)
+        bool fromAir = g_airFrames >= AIR_FRAMES || size >= 2 * IMPACT_HARD || (size >= IMPACT_HARD && !Pushing());
+        if (fromAir) {
+            // a real hit: ends the scream at once (no wait for the last voice), the landing list per the settings; the
+            // falling voice needs a new fall (g_airFrames from 0, FALL_AFTER_HIT)
+            g_impactAt = g_physFrames + 1;
+            g_airFrames = 0; g_fallSince = 0; g_fallLast = 0;
+            char why[64]; snprintf(why, sizeof why, "impact %.1f -> %.1f m/s", ref, sp);
+            if (g_cfg.impactvoice) SayWhen(size >= IMPACT_HARD ? V_HARD : V_LIGHT, size, why, true);
+            else RD_LOG("[oot_ragdoll] %s: %.1f m/s, impact voice off, voices cut (%u waiting dropped)", why, size, SayCut(nullptr));
+        } else if (g_cfg.impactvoice && Ticks() - g_lastSayTick > TickHz() * 4 / 10) {
+            g_impactAt = g_physFrames + 1;
+            SayWhen(V_SLIDE, size, "impact");   // (dragged along: waits for the last voice, as before)
+        }
     }
     // 1.1.0 (user): falling voice: in the air and his hips fall faster than fall_speed. The waits count from the last
     // voice that played, of any kind: the first one fall_delay after the fall began or the last voice (a kick's scream),
@@ -76,6 +93,7 @@ void Measure(uintptr_t cont, uintptr_t h0) {
             u64 hz = TickHz(), lastPlay = g_lastPlayTick;
             u64 from = !g_fallLast && g_fallSince > lastPlay ? g_fallSince : lastPlay;
             float wait = !g_fallLast ? g_cfg.falldelay : g_cfg.fallrepeat;
+            if (!g_fallLast && g_impactAt) wait = fmaxf(wait, FALL_AFTER_HIT);   // 1.2.0: after a hit, a clear new fall first
             bool due = (!g_fallLast || g_cfg.fallrepeat > 0) && now - from >= static_cast<u64>(wait * hz);
             if (due && !SayBusy()) {
                 g_fallLast = now;
@@ -83,7 +101,8 @@ void Measure(uintptr_t cont, uintptr_t h0) {
             }
         }
     }
-    g_lastDrop = g_impactPrevCont == cont ? drop : 0.f;
+    g_lastDrop = same ? drop : 0.f;
+    g_impactSpeed2 = same ? psp : 0.f;
     g_impactPrev = v; g_impactPrevCont = cont; g_bodySpeed = sp;  // (push/kick overwrite prev with the velocity they set)
     PosOf(h0, g_bodyPos);
     // rest counter for Grounded: up while his hips have no vertical speed, down twice as fast otherwise
@@ -254,7 +273,7 @@ void KickPush(uintptr_t cont, const Bodies& b, const float d[3], bool burst, boo
             }
         }
         SetV(h, &w);
-        if (i == 0) g_impactPrev = w;  // next frame's impact check compares with what the push/kick set
+        if (i == 0) { g_impactPrev = w; g_impactSpeed2 = 0; }  // next frame's impact check compares with what the push/kick set
     }
 }
 

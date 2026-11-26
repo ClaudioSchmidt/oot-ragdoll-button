@@ -1,9 +1,9 @@
-Ragdoll Button 1.1.1 - a button that turns Link into a physics ragdoll, Ocarina of Time (Switch 2), game 1.1.1
-PC (Hookshot, Longshot, Triforce, ReLink) needs HSML 2.0+: https://gamebanana.com/mods/741559
-Switch / emulator: no HSML needed, the Mod Menu is built in.
+Ragdoll Button 1.2.0 - a button that turns Link into a physics ragdoll, Ocarina of Time (Switch 2), game 1.1.1
+Needs HSML 2.1 on every platform (PC ports Hookshot, Longshot, Triforce, ReLink; Switch / emulator): https://gamebanana.com/mods/741559
+Switch / emulator: install HSML once and enable it in the emulator's Add-Ons.
 
 INSTALL
-Switch / emulator: copy the folder ragdoll-button into the game's mod folder
+Switch / emulator: copy the folder ragdoll-button into the game's mod folder, beside HSML's folder HSML
   (fritchii: %APPDATA%\fritchii\load\0400486024DEC000\).
 PC: extract the PC zip into the port's root folder (gives mods\Ragdoll Button\).
   From 0.10 or older: delete the old mods\Ragdoll Button folder first.

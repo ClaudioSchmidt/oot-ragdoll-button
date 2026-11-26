@@ -10,9 +10,24 @@ void Say(const char* list) {
     SpinLock k(&g_sayLock);
     u32 h = g_sayHead;
     if (h - g_sayTail >= 4) return;  // full: drop
-    g_sayQ[h % 4] = {list};
+    g_sayQ[h % 4] = {list, false};
     MemBarrier();
     g_sayHead = h + 1; g_lastSayTick = Ticks();
+}
+// 1.2.0 (user: he screamed on after a hit): an impact drops every voice still waiting (a scream queued just before the
+// hit) and its own list plays at once; on his voice slot it replaces the scream that is playing. Returns the dropped.
+u32 SayCut(const char* list) {
+    SpinLock k(&g_sayLock);
+    u32 h = g_sayHead, t = g_sayTail, c = g_sayCut;
+    u32 dropped = h - (static_cast<s32>(c - t) > 0 ? c : t);
+    g_sayCut = h;   // (VoiceTick skips to it)
+    if (list) {
+        g_sayQ[h % 4] = {list, true};
+        MemBarrier();
+        g_sayHead = h + 1;
+    }
+    g_lastSayTick = Ticks();
+    return dropped;
 }
 bool SayBusy() { return g_sayHead != g_sayTail; }
 // one name, copied (the menu's play buttons: their text may change before the AI thread plays it)
@@ -37,14 +52,16 @@ void SayForce(int level) {
 
 // a voice by situation (1.1.0): the list of that situation (press and kicks: of the force level now), the next entry in turn
 enum VoiceWhen { V_PRESS, V_FALL, V_HARD, V_LIGHT, V_SLIDE, V_GETUP };
-void SayWhen(VoiceWhen w, float speed, const char* why) {
+void SayWhen(VoiceWhen w, float speed, const char* why, bool cut = false) {
     int f = g_cfg.force < 0 || g_cfg.force > 4 ? 2 : g_cfg.force;
     const char* lists[6] = {g_cfg.voicepress[f], g_cfg.voicefall[f], g_cfg.voicehard, g_cfg.voicelight, g_cfg.voiceslide, g_cfg.voicegetup};
     static const char* const NAMES[6] = {"button", "falling", "hard", "light", "sliding", "get-up"};
     const char* l = lists[w];
     bool off = !l[0] || !strcmp(l, "none");
-    if (!off) Say(l);   // (a silent list takes no place in the queue)
-    RD_LOG("[oot_ragdoll] %s: %.1f m/s -> voice %s%s%s%s", why, speed, NAMES[w], w <= V_FALL ? ", force " : "", w <= V_FALL ? FORCES[f] : "", off ? " (silent)" : "");
+    char cutNote[48] = "";
+    if (cut) snprintf(cutNote, sizeof cutNote, ", voices cut (%u waiting dropped)", SayCut(off ? nullptr : l));
+    else if (!off) Say(l);   // (a silent list takes no place in the queue)
+    RD_LOG("[oot_ragdoll] %s: %.1f m/s -> voice %s%s%s%s%s", why, speed, NAMES[w], w <= V_FALL ? ", force " : "", w <= V_FALL ? FORCES[f] : "", off ? " (silent)" : "", cutNote);
 }
 
 // play an SLink key on his own sound user (as the AINB node OneShotXLinkSearchAndEmit does)
@@ -101,9 +118,13 @@ void PlayFromList(uintptr_t actor, const char* list) {
 // AI thread, every frame: play the next queued voice, 0.3 s apart
 void VoiceTick() {
     static u64 next;
-    if (g_sayTail == g_sayHead || Ticks() < next) return;
+    u32 t = g_sayTail, cut = g_sayCut;
+    if (static_cast<s32>(cut - t) > 0) g_sayTail = t = cut;   // cut by an impact: those never play
+    if (t == g_sayHead) return;
     MemBarrier();
-    SayItem it = g_sayQ[g_sayTail % 4]; g_sayTail = g_sayTail + 1;
+    SayItem it = g_sayQ[t % 4];
+    if (!it.now && Ticks() < next) return;
+    g_sayTail = t + 1;
     PlayFromList(g_player, it.list);
     g_lastPlayTick = Ticks();
     next = g_lastPlayTick + TickHz() * 3 / 10;

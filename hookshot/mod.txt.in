@@ -3,8 +3,9 @@
 # banner2.jpg, banner3.jpg
 name = Ragdoll Button
 version = @VERSION@
-author = Clausioporosis
+author = ClaudioSchmidt
 link = GameBanana | https://gamebanana.com/mods/740650
 link = GitHub | https://github.com/ClaudioSchmidt/oot-ragdoll-button
 license = GPL-2.0
+requires = hsml 2.1
 about = Press a button and Link goes limp: a full physics ragdoll from any pose, keeping his speed.

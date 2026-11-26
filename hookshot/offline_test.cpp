@@ -1,7 +1,17 @@
 // Offline tests of the built DLL, no game needed (sh hookshot/build.sh settings-test | menu-preview).
 //   offline_test.exe settings <dll> [file ...]   defaults and each settings file through the reader and the writer
 //   offline_test.exe menu <dll> <out dir> [advanced 0|1] [w] [h] [scale]   the menu's tabs as PNGs (CPU painted)
+// Linux (sh build.sh linux-settings-test): the settings part, the .so through dlopen (the menu preview is Windows only)
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <dlfcn.h>
+#include <cstdio>
+typedef void* HMODULE;
+inline HMODULE LoadLibraryA(const char* p) { return dlopen(p, RTLD_NOW | RTLD_LOCAL); }
+inline void* GetProcAddress(HMODULE m, const char* n) { return dlsym(m, n); }
+inline unsigned long GetLastError() { const char* e = dlerror(); if (e) printf("%s\n", e); return 0; }
+#endif
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>

@@ -3,7 +3,18 @@
 // is `u64 f(Ctx* rcx)`; the loader installs the detours below at function starts. The generic runtime (guest calls,
 // ToGuest, log, HookGuest) is ../../hsml/sdk/hsml_mod.cpp. main.cpp's hook bodies are reached through the
 // Hs* entry points of hooks_hs.inc. The settings menu is a page in HSML's shared menu (src/menu.inc, registered below). Log: <Hookshot>\ragdoll.log. Settings: <modDir>\oot_ragdoll.txt.
+// Linux (HSML 2.1: sh hookshot/build.sh linux -> out/linux/ragdoll-button.so, the same folders with / and .so): the
+// same file; the few Windows calls it makes have their Linux bodies in the block below, the rest is shared.
+#ifdef _WIN32
 #include <windows.h>
+#define RD_SEP "\\"
+#else
+#include <cstdlib>
+#define RD_SEP "/"
+#define MAX_PATH 4096
+typedef long LONG;
+inline LONG InterlockedExchange(volatile LONG* p, LONG v) { return __atomic_exchange_n(p, v, __ATOMIC_SEQ_CST); }
+#endif
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -219,17 +230,32 @@ bool HsReadable(uintptr_t g) {
     struct Reg { u64 lo, hi; };
     static Reg cache[32]; static unsigned next;
     for (auto& r : cache) if (g >= r.lo && g < r.hi) return true;
+#ifdef _WIN32
     MEMORY_BASIC_INFORMATION mbi;
     if (!VirtualQuery(reinterpret_cast<void*>(g + HS_MEM), &mbi, sizeof mbi)) return false;
     if (mbi.State != MEM_COMMIT || (mbi.Protect & (PAGE_NOACCESS | PAGE_GUARD)) || !mbi.Protect) return false;
     u64 lo = reinterpret_cast<u64>(mbi.BaseAddress) - HS_MEM;
     cache[next++ % 32] = {lo, lo + mbi.RegionSize};
     return true;
+#else   // the mapping that holds it, from /proc/self/maps: readable ("r" first in its rights)
+    u64 a = g + HS_MEM;
+    FILE* f = fopen("/proc/self/maps", "r");
+    if (!f) return false;
+    char line[512]; bool ok = false;
+    while (fgets(line, sizeof line, f)) {
+        char* e; u64 lo = strtoull(line, &e, 16), hi = *e == '-' ? strtoull(e + 1, &e, 16) : 0;
+        if (a < lo || a >= hi) continue;
+        if (*e == ' ' && e[1] == 'r') { ok = lo >= HS_MEM; if (ok) cache[next++ % 32] = {lo - HS_MEM, hi - HS_MEM}; }
+        break;
+    }
+    fclose(f);
+    return ok;
+#endif
 }
 
 // ---- settings file <modDir>\oot_ragdoll.txt ------------------------------------------------
 bool CfgLoad(char* buf, size_t cap, size_t* len) {
-    char path[MAX_PATH + 32]; snprintf(path, sizeof path, "%s\\oot_ragdoll.txt", g_modDir);
+    char path[MAX_PATH + 32]; snprintf(path, sizeof path, "%s" RD_SEP "oot_ragdoll.txt", g_modDir);
     FILE* f = fopen(path, "rb");
     if (!f) { HsLog("[oot_ragdoll] oot_ragdoll.txt not found (%s), defaults kept", path); return false; }
     size_t n = fread(buf, 1, cap - 1, f); fclose(f);
@@ -237,7 +263,7 @@ bool CfgLoad(char* buf, size_t cap, size_t* len) {
     return true;
 }
 bool CfgSave(const char* buf, size_t len) {
-    char path[MAX_PATH + 32]; snprintf(path, sizeof path, "%s\\oot_ragdoll.txt", g_modDir);
+    char path[MAX_PATH + 32]; snprintf(path, sizeof path, "%s" RD_SEP "oot_ragdoll.txt", g_modDir);
     FILE* f = fopen(path, "wb");
     if (!f) { HsLog("[oot_ragdoll] could not open oot_ragdoll.txt for writing (%s)", path); return false; }
     size_t n = fwrite(buf, 1, len, f); fclose(f);
@@ -253,6 +279,9 @@ extern "C" __declspec(dllexport) int HsmlInit(const HsmlApi* api, const char* mo
     static const HsmlMenuExtra extra = {nullptr, nullptr, PageInput};
     bool menu = HsmlMenuRegister(api, "ragdoll-button", PageDraw, PageDirty, PageSave, nullptr, &extra);
     HsLog("[oot_ragdoll] settings page: %s", menu ? "in the HSML menu" : "none (no HSML menu here: HSML before 2.0, or hsml-ui.dll missing / off); the settings file works");
+    // HSML's offline page check (hsml: sh build.sh ui-check-mod) loads this DLL with the port "offline" and no game
+    // (every f_ is missing there): the page only, no hooks
+    if (!strcmp(PortName(), "offline")) return menu ? 1 : 0;
     bool ok = Install();
     g_ok = ok;
     HsLog("[oot_ragdoll] hooks %s", ok ? "installed" : "MISSING or failed: off, the installed ones only pass through");

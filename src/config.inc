@@ -53,6 +53,9 @@ constexpr float IMPACT_HARD    = 10.f;                             // impact spe
 constexpr u32 AIR_FRAMES       = 8;                                // physics frames (60/s) off the ground: "in the air"
 constexpr float AIR_START_VY   = 3.f;                              // press while his vertical speed is above (m/s): in the air
 constexpr float IMPACT_MIN     = 6.f;                              // body speed drop (m/s) in one physics frame = impact
+constexpr float IMPACT_REL     = 0.4f;                             // 1.2.0: or this share of his speed lost in one or two frames (at least IMPACT_MIN / 2)
+constexpr u32 IMPACT_REARM     = 30;                               // physics frames after an impact before the next one counts (bounces)
+constexpr float FALL_AFTER_HIT = 0.6f;                             // s: after an impact the falling voice needs at least this long of a new fall
 constexpr float SPIN_REF_KICK  = 16.f;                             // spinKick is the flip of a kick of this speed (m/s)
 // force look. Live-tunable: the Hookshot menu, or tools/tune.py over the GDB stub (address logged at start); saved in
 // the settings file. tune.py knows the offsets: new fields go at the end.
@@ -104,7 +107,7 @@ static_assert(offsetof(Tune, rollAlong) == 0xd8 && offsetof(Tune, kick) == 0xdc 
 const Config D_CFG;   // the defaults (reset, "changed" marks)
 const Tune D_TUNE;
 
-constexpr const char* MOD_VERSION = "1.1.1";
+constexpr const char* MOD_VERSION = "1.2.0";
 constexpr int CONFIG_VERSION = 10; // bump when voice defaults change: older files get them reset
 constexpr struct { const char* n; u64 m; } BUTTONS[] = {{"none", 0}, {"a", 1}, {"b", 2}, {"x", 4}, {"y", 8},
     {"lstick", 0x10}, {"rstick", 0x20}, {"l", 0x40}, {"r", 0x80}, {"zl", 0x100}, {"zr", 0x200}, {"plus", 0x400},

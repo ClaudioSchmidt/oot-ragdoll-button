@@ -57,12 +57,15 @@ float g_spine[2]; bool g_spineOk; // ground roll: his smoothed spine direction (
 u32 g_steerFrames, g_sinceSteer = 999;   // ground brake: frames the stick steered / since it let go
 float g_lastDrop;                // impact voice: last frame's speed change of body 0
 Vec3 g_impactPrev; uintptr_t g_impactPrevCont;  // body 0 velocity after last physics frame (impact voice)
+float g_impactSpeed2;            // body 0 speed two physics frames ago (a hit spread over two frames); 0 after a push/kick set it
+u32 g_impactAt;                  // g_physFrames + 1 at the last impact of this ragdoll (0 = none yet)
 Vec3 g_snapActor, g_snapBody;    // snap log: last frame's positions
 
 // ---- voice requests from any thread; played on the AI thread (VoiceTick) ----
-struct SayItem { const char* list; };
+struct SayItem { const char* list; bool now; };   // now: an impact voice, plays at once (no 0.3 s spacing)
 SayItem g_sayQ[4];
 volatile u32 g_sayHead, g_sayTail;
+volatile u32 g_sayCut;           // queue index from which voices still play: the ones before it were cut by an impact
 volatile u8 g_sayLock;           // Say runs on several threads
 volatile u64 g_lastPlayTick;     // last voice actually played (AI thread): the falling voice counts its delay from it
 volatile u64 g_lastSayTick;      // last voice request (impact voices wait 0.4 s after any voice)

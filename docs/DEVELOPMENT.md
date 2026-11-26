@@ -49,7 +49,15 @@ GPL-2.0 (exlaunch). Controls and settings: [release/README.txt](release/README.t
   file is read and written from it, the menu draws its rows from it. A new value = a field (in `Tune`: at the end,
   `tools/tune.py` knows the offsets) + one table line.
 - `src/menu.inc` is the menu (Dear ImGui calls only). Its host on Hookshot is `hookshot/overlay.cpp` (the DLL is also a
-  Vulkan layer; taken from Immersive First Person). The Switch has no host yet: `platform.hpp` stubs `Menu*`.
+  Vulkan layer; taken from Immersive First Person). On Switch (HSML 2.1) the page is in HSML's Mod Menu, hosted by the
+  HSML module: this module is its client (`../hsml/switch/client/hsml_client.inc`) and carries no menu; without HSML
+  there is none.
+- The page is built from HSML's menu kit (`../hsml/sdk/hsml_kit.hpp`, namespace `hsk`, HSML 2.1): rows, section heads,
+  buttons, the binding table (blocks when the page is narrow or its columns don't fit: `hsk::BeginBinds` gets the
+  actions' names), tabs, tooltips and the help box, resets and the unsaved colour, so it looks and fits as
+  HSML's own pages at every Menu size and width. The voice lists and pickers are this mod's own, with the kit's
+  measures; an item of its own reports itself to HSML's layout check with `hsk::Probed`. The Switch build copies the kit
+  flat beside the sources (`build.sh`).
 - `src/platform.hpp` is all host access: guest memory, `GCall` / `GCallV3`, `ToGuest`, log, ticks, settings file.
   On Hookshot it pulls in `hookshot/platform_hs.hpp`, which is built on `../hsml/sdk`.
 - Where the hooks sit:
@@ -65,6 +73,9 @@ GPL-2.0 (exlaunch). Controls and settings: [release/README.txt](release/README.t
   SDK headers (see the top of `hookshot/build.sh`).
   - `sh ../hsml/build.sh` builds the loader.
   - `sh hookshot/build.sh` builds the mod: `out/hookshot/ragdoll-button.dll`.
+  - Linux (HSML 2.1, on Linux or in WSL): `sh hookshot/build.sh linux` -> `out/linux/ragdoll-button.so`; `linux-test`
+    (the test list against the port's ELF), `linux-settings-test`. `hookshot/hs_rt.cpp` has the OS block at its top;
+    `src/` is the same for both.
   - Release zip: `python release/hookshot/pack.py` makes `release/ragdoll-button-hookshot-v<version>.zip` (the mod
     and the source; the loader ships as HSML's own zip).
 
@@ -81,6 +92,10 @@ Add a new site to the map in `hookshot/hooks_hs.inc` and to the list in `hooksho
   - `sh hookshot/build.sh settings-test`: the built DLL reads and writes the defaults and each file in
     `tests/settings/` (first line `# expect: bad N changed M`); a second pass must give the same text.
   - `sh hookshot/build.sh menu-preview [advanced 0|1]`: the menu's tabs as PNGs in `build/menu-preview/`.
+  - The page inside HSML's menu, at the 8 Menu sizes, wide and 360 px, every tab (spec test T21): in `../hsml`,
+    `sh build.sh ui-check-mod <dll> <folder>` with a folder that holds a copy of `out/hookshot/mod.txt` (and an
+    `oot_ragdoll.txt` with `advanced = on` and `debugtab = on` for the Advanced rows and the Debug tab). There
+    `HsmlInit` gets the port `offline`: it registers the page and hooks nothing (`hookshot/hs_rt.cpp`).
 - In game: install as above and read both logs.
 - A Hookshot-only change must leave `subsdk7` the same: compare with `cmp -l` (the build id and one segment hash,
   72 bytes, differ whenever a source file's lines move).
@@ -94,7 +109,7 @@ Add a new site to the map in `hookshot/hooks_hs.inc` and to the list in `hooksho
 | Start kick | after the push-op loop, once | after each op-apply call of that frame (lr filter): the same write each time | if the push block never runs (empty op list), the physics hook sets the velocities two frames in, on both |
 | Physics after | mid physics update (main+0x1564b8) | before the memset call in `f_80175c60` (lr filter), or after it returns when that call is skipped | |
 | Version check | fingerprints of the hook sites, at start | the same fingerprints at the first hook call (guest memory isn't there yet at load); `versioncheck = off` skips it | checked offline against Hookshot's and Triforce's `main`: all 16 match |
-| Settings menu | none yet | F9 / L3 + R3 (`overlay.cpp`) | |
+| Settings menu | a page in HSML's Mod Menu (HSML 2.1: needs the HSML module; without it none) | F9 / L3 + R3 (`overlay.cpp`) | |
 | Settings file | `sdmc:/OoT-Mods/oot_ragdoll.txt` | `mods\<name>\oot_ragdoll.txt` | |
 | Log | emulator log | `ragdoll.log`, `hsml.log` | |
 | Release | zip (`tools/package.py`), 0.9.0 released | zip (`release/hookshot/pack.py`), needs HSML, 0.9.0 released | 0.10.0 not packed or released |
@@ -112,7 +127,9 @@ Add a new site to the map in `hookshot/hooks_hs.inc` and to the list in `hooksho
   "0.10.0" is not walked through item by item. 0.10.1: FINDINGS.md "0.10.1".
 - Immersive First Person's third person camera has no own collision (walls from the game's hidden camera, ground = a
   plane under his feet): its docs/open.md item 10, needs a GDB session.
-- Menu on the Switch: needs a host (Immersive First Person paints its menu on the CPU there).
-- One menu for several mods (a tab per mod) needs the overlay in HSML instead of in each mod.
+- Menu on the Switch: needs a host (Immersive First Person paints its menu on the CPU there). (HSML 2.1: the HSML
+  module hosts it.)
+- One menu for several mods (a tab per mod) needs the overlay in HSML instead of in each mod. (HSML 2.1: done on both
+  platforms.)
 - `sh hookshot/build.sh test` with `HOOKSHOT_EXE=...\Triforce.exe` crashes in HSML's test tool (the mod itself runs
   there).

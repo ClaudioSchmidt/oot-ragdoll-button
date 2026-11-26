@@ -35,28 +35,31 @@ inline void FromGuest(void*, uintptr_t, size_t) {}
 inline u64 Ticks() { u64 t; asm volatile("mrs %0, cntpct_el0" : "=r"(t)); return t; }
 inline u64 TickHz() { return 19200000; }
 inline void MemBarrier() { asm volatile("dmb ish" ::: "memory"); }
-#define RD_LOG(...) Logging.Log(__VA_ARGS__)
+// the emulator log as Logging.Log(fmt, ...) writes it, and HSML's Log page while log_rag and log_map are off (hsml
+// switch/client/hsml_client.inc; HSML_NX_LOG_FORWARD in hooks_switch.inc)
+void HsmlNxLogf(const char* fmt, ...);
+#define RD_LOG(...) HsmlNxLogf(__VA_ARGS__)
 
-// the settings menu: a page in the Mod Menu every Switch mod carries (hsml nx/modmenu_nx.inc, included by
-// hooks_switch.inc: the module with the newest menu hosts it; this mod's page is registered there as on PC). When this
-// module hosts, the menu gets its pads and its frame from the npad hook (input.inc)
+// the settings menu: a page in HSML's Mod Menu (HSML 2.1: this module carries no menu; hsml
+// switch/client/hsml_client.inc, included by hooks_switch.inc: the HSML module, or a released mod that carries the
+// menu, hosts it; this mod's page is registered there as on PC; without a host there is no menu). The host reads the
+// pads and makes the menu's frames itself: MenuPad and MenuFrame do nothing here
 #include "hsml_menu.hpp"
 #include "nx_fs.hpp"
 #include <atomic>
-void HsmlNxPad(u64 buttons, float lx, float ly);
-void HsmlNxFrame();
 inline bool MenuOpen() { return HsmlMenuIsOpen(); }
 inline bool MenuTakesPad() { return HsmlMenuTakesPad(); }
 inline void MenuToggle() { HsmlMenuOpen(); }   // this mod's shortcut: the menu at its page, closed when it shows it
-inline void MenuPad(u64 b, float lx, float ly) { HsmlNxPad(b, lx, ly); }
-inline void MenuFrame() { HsmlNxFrame(); }
+inline void MenuPad(u64, float, float) {}
+inline void MenuFrame() {}
 inline int MenuMouseBlock() { return 0; }
 
-// settings file on the SD card (ragdollsd:/OoT-Mods/oot_ragdoll.txt). No file call that can fail (hsml nx/nx_fs.hpp:
-// one that fails while a module starts ends the game): a file or folder is looked up in its folder's listing first
+// settings file on the SD card (ragdollsd:/OoT-Mods/oot_ragdoll.txt). No file call that can fail (hsml
+// switch/nx_fs.hpp: one that fails while a module starts ends the game): a file or folder is looked up in its folder's
+// listing first
 #define RD_CONFIG_DIR "ragdollsd:/OoT-Mods"
 #define RD_CONFIG_PATH "ragdollsd:/OoT-Mods/oot_ragdoll.txt"
-// the SD card, mounted on the first call (the settings on the AI thread, or the menu's own settings on the pad's)
+// the SD card, mounted on the first call (the settings file: read on the AI thread, saved from the menu)
 inline bool CfgSdOk() {
     static std::atomic_flag busy = ATOMIC_FLAG_INIT;
     static std::atomic<int> state{0};   // 1 mounted, 2 not available

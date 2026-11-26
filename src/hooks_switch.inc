@@ -52,19 +52,20 @@ HOOK_DEFINE_INLINE(RagUpdateHook) {
 
 }  // namespace
 
-// The Mod Menu (hsml nx/modmenu_nx.inc, build.sh copies it): every Switch mod with a settings page carries it, the
-// module with the newest menu hosts it and the others' pages join. This mod's page is registered as on PC
-// (HsmlMenuRegister, exl_main)
-#define HSML_NX_LOG(...) RD_LOG(__VA_ARGS__)
+// HSML 2.1: this module carries no menu. Its page goes into HSML's Mod Menu (hsml switch/client/hsml_client.inc,
+// build.sh copies it), hosted by the HSML module or by a released mod that carries the menu; it is registered as on PC
+// (HsmlMenuRegister, exl_main). Without a host: one log line, no menu, the settings file works as before.
+#define HSML_NX_LOG(...) Logging.Log(__VA_ARGS__)   // (the client's own lines: the emulator log; it forwards them itself)
+#define HSML_NX_LOG_FORWARD (g_tune.logRag == 0 && g_tune.logMap == 0)   // RD_LOG's lines on HSML's Log page only without the debug logs
 #define HSML_NX_TAG "[oot_ragdoll]"
 #define HSML_NX_SD "ragdollsd"
 #define HSML_NX_SD_OK CfgSdOk()
 #define HSML_NX_NAME "Ragdoll Button"
 #define HSML_NX_VERSION MOD_VERSION
-#define HSML_NX_AUTHOR "Clausioporosis"
-#define HSML_NX_META "link = GameBanana | https://gamebanana.com/mods/740650\nlink = GitHub | https://github.com/ClaudioSchmidt/oot-ragdoll-button\nlicense = GPL-2.0\n"   // more info rows (hsml nx/hsml_nx.h)
+#define HSML_NX_AUTHOR "ClaudioSchmidt"
+#define HSML_NX_META "link = GameBanana | https://gamebanana.com/mods/740650\nlink = GitHub | https://github.com/ClaudioSchmidt/oot-ragdoll-button\nlicense = GPL-2.0\n"   // more info rows (hsml switch/hsml_nx.h)
 #define HSML_NX_ABOUT "Press a button and Link goes limp: a full physics ragdoll from any pose, keeping his speed."
-#include "modmenu_nx.inc"
+#include "hsml_client.inc"
 namespace {
 void NxRdPageDraw(void*) { RdMenuPage(); }
 int NxRdPageDirty(void*) { return RdMenuDirty(); }
@@ -80,13 +81,13 @@ int NxRdPageInput(void*, int kind, int, int) {
 
 extern "C" void exl_main(void* x0, void* x1) {
     exl::hook::Initialize();
-    // the Mod Menu: who hosts it (this module: its two screen hooks go in here), then this mod's page. Before the
-    // version check: a mod that stays off still shows in the list
+    // the Mod Menu: the module that hosts it (HSML's), then this mod's page. Before the version check: a mod that stays
+    // off still shows in the list
     const HsmlApi* api = HsmlNxInstall();
     static const HsmlMenuExtra extra = {nullptr, nullptr, NxRdPageInput};
     bool menu = HsmlMenuRegister(api, "ragdoll-button", NxRdPageDraw, NxRdPageDirty, NxRdPageSave, nullptr, &extra);
-    RD_LOG("[oot_ragdoll] settings page %s (the Mod Menu is hosted by %s)", menu ? "registered" : "not registered",
-           HsmlNxHosts() ? "this module" : HsmlNxHostName());
+    RD_LOG("[oot_ragdoll] settings page %s%s%s", menu ? "registered (the Mod Menu is hosted by " : "not registered (no Mod Menu)",
+           menu ? HsmlNxHostName() : "", menu ? ")" : "");
     if (!RagCheck()) return;
     InputHook::InstallAtOffset(OFF_INPUT);
     ChooseHook::InstallAtOffset(OFF_CHOOSE);
